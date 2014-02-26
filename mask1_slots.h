@@ -12,6 +12,71 @@ extern rlModbusClient     modbus;
 extern rlDataAcquisition *acqui;
 //extern rlSiemensTCPClient siemensTCP;
 //extern rlPPIClient        ppi;
+#include<sys/socket.h>
+#include<arpa/inet.h> //inet_addr
+
+//////////////////// NUEVO CODIGO AÑADIDO /////////////////////////
+int getTemperatura(char *ip, int port )
+{
+    int socket_desc;
+    struct sockaddr_in server;
+    int temperatura = 0;
+    int k = 0;
+    char *p=NULL;
+    char *message , server_reply[2000]="0";
+     
+    //Create socket
+    socket_desc = socket(AF_INET , SOCK_STREAM , 0);
+    if (socket_desc == -1)
+    {
+        printf("Could not create socket");
+    }
+         
+
+    //server.sin_addr.s_addr = inet_addr("127.0.0.1");
+    server.sin_addr.s_addr = inet_addr(ip);
+    server.sin_family = AF_INET;
+    server.sin_port = htons( port );
+ 
+    //Connect to remote server
+    if (connect(socket_desc , (struct sockaddr *)&server , sizeof(server)) < 0)
+    {
+        puts("connect error");
+        return 1;
+    }
+     
+    puts("Connected\n");
+     
+    //Send some data
+    message = "GET / HTTP/1.1\r\n\r\n";
+        
+    if( send(socket_desc , message , strlen(message) , 0) < 0)
+    {
+        puts("Send failed");
+        return 1;
+    }
+    //puts("Data Send\n");
+     fflush(stdin);
+    //Receive a reply from the server
+    if( read(socket_desc, server_reply , 2000 ) < 0)
+    {
+        puts("recv failed");
+    }
+   
+    p = strtok(server_reply , "|") ;
+    while(p) {
+        if ( k == 1){
+            temperatura = atoi(p);
+            //puts(p);
+        }
+       
+        p = strtok( NULL , "|") ;
+        k++;
+    }
+    
+    return temperatura;
+}
+///////////////////////////////////////////////////////////////////
 
 static int counter(int offset){
    return modbus.readByte(offset,1)*256 + modbus.readByte(offset,0);
@@ -52,9 +117,12 @@ static int slotNullEvent(PARAM *p, DATA *d)
 {
 
   if(p == NULL || d == NULL) return -1;
-  r= (rand()%10)+10;
-  pvPrintf(p,label2,"%d",r);
-  r=(rand()%10)+10;
+  //r= (rand()%10)+10;
+  //getTemperatura(IP_DISPOSITIVO, PUERTO );
+  r = getTemperatura("127.0.0.1", 6413 ); // ESTÁ EN LOCALHOST PERO SE DEBE REEMPLAZAR POR LA IP DEL BEAGLEBONE DEL AULA A ACCEDER
+  pvPrintf(p,label2,"%d",r); // COLOCA LA TEMPERATURA LEIDA DESDE EL SERVIDOR REMOTO (DEBERA SER DEL BEAGLEBONE)
+  
+  //r=(rand()%10)+10;
   pvPrintf(p,label3,"%d",r);
   //r=;
   pvPrintf(p,label4,"%d",counter(modbusdaemon_LIFE_COUNTER_BASE));
